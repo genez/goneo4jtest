@@ -26,8 +26,8 @@ func main() {
 	}
 	log.Print("...done")
 
-	palletIndex := flag.Int("firstPallet", 1, "first pallet to start from")
-	palletNumber := flag.Int("numberOfPallets", 300, "number of pallets to produce")
+	palletIndex := *flag.Int("firstPallet", 1, "first pallet to start from")
+	palletNumber := *flag.Int("numberOfPallets", 300, "number of pallets to produce")
 
 	caseIndex := 1
 	caseNumber := 36
