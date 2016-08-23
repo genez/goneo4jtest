@@ -10,10 +10,11 @@ import (
 )
 
 func main() {
-	palletIndex := *flag.Int("firstPallet", 1, "first pallet to start from")
-	palletNumber := *flag.Int("numberOfPallets", 300, "number of pallets to produce")
+	palletIndex := flag.Int("firstPallet", 1, "first pallet to start from")
+	palletNumber := flag.Int("numberOfPallets", 300, "number of pallets to produce")
+	flag.Parse()
 
-	log.Println("Aggregating ", palletNumber, " Pallets starting from ", palletIndex)
+	log.Println("Aggregating ", *palletNumber, " Pallets starting from ", *palletIndex)
 
 	log.Print("Connecting...")
 	db, err := sql.Open("neo4j-cypher", "http://neo4j:antares1@localhost:7474")
@@ -41,7 +42,7 @@ func main() {
 	packageIndex := 0
 	packageNumber := 96
 
-	for i := 0; i < palletNumber; i++ {
+	for i := 0; i < (*palletNumber); i++ {
 		/*log.Print("Begin tran...")
 		tx, err := db.Begin()
 		if err != nil {
@@ -108,7 +109,7 @@ func main() {
 			log.Print("...CASE done")
 		}
 
-		palletIndex++
+		(*palletIndex)++
 
 		/*err = tx.Commit()
 		if err != nil {
