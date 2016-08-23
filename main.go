@@ -72,7 +72,7 @@ func main() {
 		for j := 0; j < caseNumber; j++ {
 			log.Print("Inserting CASE...")
 			var caseId int
-			err = stmt.QueryRow(300, "08695678", fmt.Sprintf("%010d", caseIndex), 10, "LOT001", caseIndex, "", "").Scan(&caseId)
+			err = stmt.QueryRow(300, "08695678", fmt.Sprintf("%03d%07d", palletIndex, caseIndex), 10, "LOT001", caseIndex, "", "").Scan(&caseId)
 			_, err = rel.Exec(palletId, caseId)
 			if err != nil {
 				log.Fatal(err)
@@ -81,7 +81,7 @@ func main() {
 			for k := 0; k < bundleNumber; k++ {
 				log.Print("Inserting BUNDLE...")
 				var bundleId int
-				err = stmt.QueryRow(200, "08699012", fmt.Sprintf("%010d", bundleIndex), 10, "LOT001", bundleIndex, "", "").Scan(&bundleId)
+				err = stmt.QueryRow(200, "08699012", fmt.Sprintf("%03d%07d", palletIndex, bundleIndex), 10, "LOT001", bundleIndex, "", "").Scan(&bundleId)
 				_, err = rel.Exec(caseId, bundleId)
 				if err != nil {
 					log.Fatal(err)
@@ -89,7 +89,7 @@ func main() {
 
 				for l := 0; l < packageNumber; l++ {
 					var packageId int
-					err = stmt.QueryRow(100, "08690000", fmt.Sprintf("%010d", packageIndex), 10, "LOT001", packageIndex, "", "").Scan(&packageId)
+					err = stmt.QueryRow(100, "08690000", fmt.Sprintf("%03d%07d", palletIndex, packageIndex), 10, "LOT001", packageIndex, "", "").Scan(&packageId)
 					_, err = rel.Exec(bundleId, packageId)
 					if err != nil {
 						log.Fatal(err)
