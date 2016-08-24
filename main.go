@@ -39,19 +39,19 @@ func main() {
 	for i := 0; i < (*palletNumber); i++ {
 
 		log.Print("Inserting PALLET...")
-		err := writer.Write([]string{"400", "08691234", "", "", fmt.Sprintf("%010d", *palletIndex), "1", "LOT001", strconv.Itoa(*palletIndex), "", ""})
+		err := writer.Write([]string{"400", "08691234", fmt.Sprintf("%010d", *palletIndex), "", "", "1", "LOT001", strconv.Itoa(*palletIndex), "", ""})
 		checkError("Cannot create PALLET", err)
 
 		for j := 0; j < caseNumber; j++ {
-			err := writer.Write([]string{"300", "08695678", fmt.Sprintf("%03d%07d", *palletIndex, caseIndex), "08691234", fmt.Sprintf("%010d", palletIndex), "10", "LOT001", strconv.Itoa(caseIndex), "", ""})
+			err := writer.Write([]string{"300", "08695678", fmt.Sprintf("%03d%07d", *palletIndex, caseIndex), "08691234", fmt.Sprintf("%010d", *palletIndex), "10", "LOT001", strconv.Itoa(caseIndex), "", ""})
 			checkError("Cannot create CASE", err)
 
 			for k := 0; k < bundleNumber; k++ {
-				err := writer.Write([]string{"200", "08699012", fmt.Sprintf("%03d%07d", *palletIndex, bundleIndex), "08695678", fmt.Sprintf("%03d%07d", palletIndex, caseIndex), "10", "LOT001", strconv.Itoa(bundleIndex), "", ""})
+				err := writer.Write([]string{"200", "08699012", fmt.Sprintf("%03d%07d", *palletIndex, bundleIndex), "08695678", fmt.Sprintf("%03d%07d", *palletIndex, caseIndex), "10", "LOT001", strconv.Itoa(bundleIndex), "", ""})
 				checkError("Cannot create BUNDLE", err)
 
 				for l := 0; l < packageNumber; l++ {
-					err := writer.Write([]string{"100", "08690000", fmt.Sprintf("%03d%07d", *palletIndex, packageIndex), "08699012", fmt.Sprintf("%03d%07d", palletIndex, bundleIndex), "10", "LOT001", strconv.Itoa(packageIndex), "", ""})
+					err := writer.Write([]string{"100", "08690000", fmt.Sprintf("%03d%07d", *palletIndex, packageIndex), "08699012", fmt.Sprintf("%03d%07d", *palletIndex, bundleIndex), "10", "LOT001", strconv.Itoa(packageIndex), "", ""})
 					checkError("Cannot create PACKAGE", err)
 
 					packageIndex++
