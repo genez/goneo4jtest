@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -10,63 +11,85 @@ import (
 )
 
 func main() {
-	palletIndex := flag.Int("firstPallet", 1, "first pallet to start from")
+	palletIndex := 0
 	palletNumber := flag.Int("numberOfPallets", 1, "number of pallets to produce")
-	fileName := flag.String("fileName", "items.csv", "file name")
 	flag.Parse()
 
-	log.Println("Aggregating ", *palletNumber, " Pallets starting from ", *palletIndex)
+	log.Println("Aggregating ", *palletNumber, " Pallets starting from ", palletIndex)
 
-	caseIndex := 1
-	caseNumber := 36
+	caseIndex := 0
+	caseNumber := 8
 
 	bundleIndex := 0
-	bundleNumber := 8
+	bundleNumber := 12
 
 	packageIndex := 0
-	packageNumber := 96
+	packageNumber := 24
 
-	file, err := os.Create(*fileName)
+	itemsFile, err := os.Create("items.csv.gz")
 	checkError("Cannot create file", err)
-	defer file.Close()
+	defer itemsFile.Close()
 
-	writer := csv.NewWriter(file)
+	itemsGzip := gzip.NewWriter(itemsFile)
+	defer itemsGzip.Flush()
+	defer itemsGzip.Close()
 
-	writer.Write([]string{"Type", "NTIN", "Serial", "ParentNTIN", "ParentSerial", "Status", "Lot", "Sequence", "Flags", "HelperCode"})
+	itemsWriter := csv.NewWriter(itemsGzip)
+	defer itemsWriter.Flush()
 
-	defer writer.Flush()
+	relationsFile, err := os.Create("relations.csv.gz")
+	checkError("Cannot create file", err)
+	defer relationsFile.Close()
+
+	relationsGzip := gzip.NewWriter(relationsFile)
+	defer relationsGzip.Flush()
+	defer relationsGzip.Close()
+
+	relationsWriter := csv.NewWriter(relationsGzip)
+	defer relationsWriter.Flush()
+
+	itemsWriter.Write([]string{":ID(Item)", "Type:int", "NTIN:string", "Serial:string", "Status:int", "Lot:string", "Sequence:long", "Flags:string", "HelperCode:string"})
+	relationsWriter.Write([]string{":START_ID(Item)",":END_ID(Item)"})
 
 	for i := 0; i < (*palletNumber); i++ {
-
 		log.Print("Inserting PALLET...")
-		err := writer.Write([]string{"400", "08691234", fmt.Sprintf("%010d", *palletIndex), "", "", "1", "LOT001", strconv.Itoa(*palletIndex), "", ""})
+		err := itemsWriter.Write([]string{fmt.Sprintf("08691234%010d", palletIndex), "400", "08691234", fmt.Sprintf("%010d", palletIndex), "1", "LOT001", strconv.Itoa(palletIndex), "", ""})
 		checkError("Cannot create PALLET", err)
 
 		for j := 0; j < caseNumber; j++ {
-			err := writer.Write([]string{"300", "08695678", fmt.Sprintf("%03d%07d", *palletIndex, caseIndex), "08691234", fmt.Sprintf("%010d", *palletIndex), "10", "LOT001", strconv.Itoa(caseIndex), "", ""})
+			err := itemsWriter.Write([]string{fmt.Sprintf("08695678%010d", caseIndex), "300", "08695678", fmt.Sprintf("%010d", caseIndex), "10", "LOT001", strconv.Itoa(caseIndex), "", ""})
 			checkError("Cannot create CASE", err)
 
 			for k := 0; k < bundleNumber; k++ {
-				err := writer.Write([]string{"200", "08699012", fmt.Sprintf("%03d%07d", *palletIndex, bundleIndex), "08695678", fmt.Sprintf("%03d%07d", *palletIndex, caseIndex), "10", "LOT001", strconv.Itoa(bundleIndex), "", ""})
+				err := itemsWriter.Write([]string{fmt.Sprintf("08699012%010d", bundleIndex), "200", "08699012", fmt.Sprintf("%010d", bundleIndex), "10", "LOT001", strconv.Itoa(bundleIndex), "", ""})
 				checkError("Cannot create BUNDLE", err)
 
 				for l := 0; l < packageNumber; l++ {
-					err := writer.Write([]string{"100", "08690000", fmt.Sprintf("%03d%07d", *palletIndex, packageIndex), "08699012", fmt.Sprintf("%03d%07d", *palletIndex, bundleIndex), "10", "LOT001", strconv.Itoa(packageIndex), "", ""})
+					err := itemsWriter.Write([]string{fmt.Sprintf("08690000%010d", packageIndex), "100", "08690000", fmt.Sprintf("%010d", packageIndex), "10", "LOT001", strconv.Itoa(packageIndex), "", ""})
 					checkError("Cannot create PACKAGE", err)
+
+					err = relationsWriter.Write([]string{fmt.Sprintf("08699012%010d", bundleIndex), fmt.Sprintf("08690000%010d", packageIndex)})
+					checkError("Cannot create PACKAGE relation", err)
 
 					packageIndex++
 				}
 
+				err = relationsWriter.Write([]string{fmt.Sprintf("08695678%010d", caseIndex), fmt.Sprintf("08699012%010d", bundleIndex)})
+				checkError("Cannot create BUNDLE relation", err)
+
 				bundleIndex++
 			}
+
+			err = relationsWriter.Write([]string{fmt.Sprintf("08691234%010d", palletIndex), fmt.Sprintf("08695678%010d", caseIndex)})
+			checkError("Cannot create PALLET relation", err)
 
 			caseIndex++
 		}
 
-		(*palletIndex)++
+		palletIndex++
 
 		log.Print("...PALLET done")
-		writer.Flush()
+		itemsWriter.Flush()
 	}
 }
 
