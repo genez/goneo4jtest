@@ -1,4 +1,2 @@
 CREATE INDEX ON :Item(NTIN);
 CREATE INDEX ON :Item(Serial);
-CREATE INDEX ON :Item(ParentNTIN);
-CREATE INDEX ON :Item(ParentSerial);
