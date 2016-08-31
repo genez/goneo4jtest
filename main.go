@@ -77,7 +77,7 @@ func main() {
 	ntinRelationWriter := csv.NewWriter(ntinRelationGzip)
 	defer ntinRelationWriter.Flush()
 
-	ntinsWriter.Write([]string{"NTIN:string:ID(NTIN)", "CodingSet:string"})
+	ntinsWriter.Write([]string{"NTIN:ID(NTIN)", "CodingSet:string"})
 	ntinsWriter.Write([]string{"08691234", "GS1_SSCC"})
 	ntinsWriter.Write([]string{"08695678", "GS1_SSCC"})
 	ntinsWriter.Write([]string{"08699012", "GS1_SSCC"})
