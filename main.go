@@ -6,11 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
 	"os"
 	"strconv"
-	"math/rand"
 	"time"
-	"math"
 )
 
 var palletIndex int = 0
@@ -84,26 +84,33 @@ func main() {
 
 	totalItems := (*palletNumber) * caseNumber * bundleNumber * packageNumber
 
+	log.Println("Total items: ", totalItems)
+
 	rand.Seed(time.Now().UnixNano())
 
 	//eccediamo
-	numberOfLots := int(math.Ceil(math.Max(float64(totalItems / MIN_ITEMS_PER_LOT), 1)))
-	lots := make([]string, numberOfLots)
+	numberOfLots := int(math.Ceil(math.Max(float64(totalItems/MIN_ITEMS_PER_LOT), 1)))
+	log.Printf("Lot size can vary from %d to %d", MIN_ITEMS_PER_LOT, MAX_ITEMS_PER_LOT)
+	log.Printf("Maximum number of lots to generate: %d", numberOfLots)
 
-	for i:=0; i< numberOfLots;i++ {
+	lots := []string{}
+
+	for i := 0; i < numberOfLots; i++ {
 		lots = append(lots, fmt.Sprintf("LOT%05d", rand.Intn(9999)))
 	}
 
 	for _, lot := range lots {
 
-		palletsForThisLot := MIN_ITEMS_PER_LOT + rand.Intn(MAX_ITEMS_PER_LOT - MIN_ITEMS_PER_LOT)
+		itemsForThisLot := MIN_ITEMS_PER_LOT + rand.Intn(MAX_ITEMS_PER_LOT-MIN_ITEMS_PER_LOT)
 
-		for i:=0; i < palletsForThisLot && palletIndex < (*palletNumber); i++ {
+		palletsForThisLot := int(math.Ceil(float64(itemsForThisLot / caseNumber / bundleNumber / packageNumber)))
+		log.Printf("Starting lot %s with %d pallets (estimated %d items)", lot, palletsForThisLot, itemsForThisLot)
+
+		for i := 0; i < palletsForThisLot && palletIndex < (*palletNumber); i++ {
 			createPallet("08691234", itemsWriter, ntinRelationWriter, itemRelationWriter, lot)
 		}
-
+		log.Printf("lot terminated")
 	}
-
 
 }
 
@@ -114,7 +121,9 @@ func checkError(message string, err error) {
 }
 
 func createPallet(ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
-	log.Print("Inserting PALLET...")
+
+	t := time.Now()
+
 	err := itemsWriter.Write([]string{fmt.Sprintf("%d%010d", ntin, palletIndex), "400", fmt.Sprintf("%010d", palletIndex), "1", lot, strconv.Itoa(palletIndex), "", ""})
 	checkError("Cannot create PALLET", err)
 	err = ntinRelationWriter.Write([]string{ntin, fmt.Sprintf("%d%010d", ntin, palletIndex)})
@@ -124,12 +133,12 @@ func createPallet(ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.
 		createCase(ntin, "08695678", itemsWriter, ntinRelationWriter, itemRelationWriter, lot)
 	}
 
-	palletIndex++
-
-	log.Print("...PALLET done")
+	log.Printf("PALLET %010d done in %v", palletIndex, time.Since(t))
 	itemsWriter.Flush()
 	itemRelationWriter.Flush()
 	ntinRelationWriter.Flush()
+
+	palletIndex++
 }
 
 func createCase(parentFullKey string, ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
