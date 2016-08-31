@@ -7,8 +7,10 @@
 #868000x8x12x24 = more less 2 bln nodes
 ./goneo4jtest --numberOfPallets=868000
 
+neo4j stop
 #paths should be adjusted
-neo4j-import --into /mnt/volume-nyc1-01/neo4j-data/databases/graph.db --id-type string --nodes:Item items.csv.gz --relationships:CONTAINS relations.csv.gz
+neo4j-import --into /var/lib/neo4j/data/databases/graph.db --id-type string --nodes:Item items.csv.gz --nodes:NTIN ntins.csv.gz --relationships:CONTAINS relations.csv.gz --relationships:HAS_ITEMS ntinrelations.csv.gz
+neo4j start
 
 neo4j-shell -c "CREATE INDEX ON :Item(NTIN);"
 neo4j-shell -c "CREATE INDEX ON :Item(Serial);"

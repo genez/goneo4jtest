@@ -78,6 +78,11 @@ func main() {
 	defer ntinRelationWriter.Flush()
 
 	ntinsWriter.Write([]string{"NTIN:string:ID(NTIN)", "CodingSet:string"})
+	ntinsWriter.Write([]string{"08691234", "GS1_SSCC"})
+	ntinsWriter.Write([]string{"08695678", "GS1_SSCC"})
+	ntinsWriter.Write([]string{"08699012", "GS1_SSCC"})
+	ntinsWriter.Write([]string{"08690000", "GS1_SGTIN"})
+
 	itemsWriter.Write([]string{":ID(Item)", "Type:int", "Serial:string", "Status:int", "Lot:string", "Sequence:long", "Flags:string", "HelperCode:string"})
 	itemRelationWriter.Write([]string{":START_ID(Item)", ":END_ID(Item)"})
 	ntinRelationWriter.Write([]string{":START_ID(NTIN)", ":END_ID(Item)"})
@@ -124,9 +129,11 @@ func createPallet(ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.
 
 	t := time.Now()
 
-	err := itemsWriter.Write([]string{fmt.Sprintf("%d%010d", ntin, palletIndex), "400", fmt.Sprintf("%010d", palletIndex), "1", lot, strconv.Itoa(palletIndex), "", ""})
+	fullKey := fmt.Sprintf("%s%010d", ntin, palletIndex)
+
+	err := itemsWriter.Write([]string{fullKey, "400", fmt.Sprintf("%010d", palletIndex), "1", lot, strconv.Itoa(palletIndex), "", ""})
 	checkError("Cannot create PALLET", err)
-	err = ntinRelationWriter.Write([]string{ntin, fmt.Sprintf("%d%010d", ntin, palletIndex)})
+	err = ntinRelationWriter.Write([]string{ntin, fullKey})
 	checkError("Cannot create NTIN->PALLET", err)
 
 	for j := 0; j < caseNumber; j++ {
@@ -143,7 +150,7 @@ func createPallet(ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.
 
 func createCase(parentFullKey string, ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
 
-	fullKey := fmt.Sprintf("%d%010d", ntin, caseIndex)
+	fullKey := fmt.Sprintf("%s%010d", ntin, caseIndex)
 
 	err := itemsWriter.Write([]string{fullKey, "300", fmt.Sprintf("%010d", caseIndex), "10", lot, strconv.Itoa(caseIndex), "", ""})
 	checkError("Cannot create CASE", err)
@@ -162,7 +169,7 @@ func createCase(parentFullKey string, ntin string, itemsWriter *csv.Writer, ntin
 
 func createBundle(parentFullKey string, ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
 
-	fullKey := fmt.Sprintf("%d%010d", ntin, bundleIndex)
+	fullKey := fmt.Sprintf("%s%010d", ntin, bundleIndex)
 
 	err := itemsWriter.Write([]string{fullKey, "200", fmt.Sprintf("%010d", bundleIndex), "10", lot, strconv.Itoa(bundleIndex), "", ""})
 	checkError("Cannot create BUNDLE", err)
@@ -181,7 +188,7 @@ func createBundle(parentFullKey string, ntin string, itemsWriter *csv.Writer, nt
 
 func createPackage(parentFullKey string, ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
 
-	fullKey := fmt.Sprintf("%d%010d", ntin, packageIndex)
+	fullKey := fmt.Sprintf("%s%010d", ntin, packageIndex)
 
 	err := itemsWriter.Write([]string{fullKey, "100", fmt.Sprintf("%010d", packageIndex), "10", lot, strconv.Itoa(packageIndex), "", ""})
 	checkError("Cannot create PACKAGE", err)
