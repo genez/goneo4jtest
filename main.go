@@ -137,7 +137,7 @@ func createPallet(ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.
 	checkError("Cannot create NTIN->PALLET", err)
 
 	for j := 0; j < caseNumber; j++ {
-		createCase(ntin, "08695678", itemsWriter, ntinRelationWriter, itemRelationWriter, lot)
+		createCase(fullKey, "08695678", itemsWriter, ntinRelationWriter, itemRelationWriter, lot)
 	}
 
 	log.Printf("PALLET %010d done in %v", palletIndex, time.Since(t))
