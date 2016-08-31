@@ -8,23 +8,41 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"math/rand"
+	"time"
+	"math"
 )
 
+var palletIndex int = 0
+var palletNumber *int
+var caseIndex = 0
+var caseNumber = 72
+
+var bundleIndex = 0
+var bundleNumber = 12
+
+var packageIndex = 0
+var packageNumber = 36
+
+const MIN_ITEMS_PER_LOT = 300000
+const MAX_ITEMS_PER_LOT = 700000
+
 func main() {
-	palletIndex := 0
-	palletNumber := flag.Int("numberOfPallets", 1, "number of pallets to produce")
+	palletNumber = flag.Int("numberOfPallets", 1, "number of pallets to produce")
 	flag.Parse()
 
 	log.Println("Aggregating ", *palletNumber, " Pallets starting from ", palletIndex)
 
-	caseIndex := 0
-	caseNumber := 8
+	ntinsFile, err := os.Create("ntins.csv.gz")
+	checkError("Cannot create file", err)
+	defer ntinsFile.Close()
 
-	bundleIndex := 0
-	bundleNumber := 12
+	ntinsGzip := gzip.NewWriter(ntinsFile)
+	defer ntinsGzip.Flush()
+	defer ntinsGzip.Close()
 
-	packageIndex := 0
-	packageNumber := 24
+	ntinsWriter := csv.NewWriter(ntinsGzip)
+	defer ntinsWriter.Flush()
 
 	itemsFile, err := os.Create("items.csv.gz")
 	checkError("Cannot create file", err)
@@ -37,64 +55,133 @@ func main() {
 	itemsWriter := csv.NewWriter(itemsGzip)
 	defer itemsWriter.Flush()
 
-	relationsFile, err := os.Create("relations.csv.gz")
+	itemRelationFile, err := os.Create("itemrelations.csv.gz")
 	checkError("Cannot create file", err)
-	defer relationsFile.Close()
+	defer itemRelationFile.Close()
 
-	relationsGzip := gzip.NewWriter(relationsFile)
-	defer relationsGzip.Flush()
-	defer relationsGzip.Close()
+	itemRelationGzip := gzip.NewWriter(itemRelationFile)
+	defer itemRelationGzip.Flush()
+	defer itemRelationGzip.Close()
 
-	relationsWriter := csv.NewWriter(relationsGzip)
-	defer relationsWriter.Flush()
+	itemRelationWriter := csv.NewWriter(itemRelationGzip)
+	defer itemRelationWriter.Flush()
 
-	itemsWriter.Write([]string{":ID(Item)", "Type:int", "NTIN:string", "Serial:string", "Status:int", "Lot:string", "Sequence:long", "Flags:string", "HelperCode:string"})
-	relationsWriter.Write([]string{":START_ID(Item)",":END_ID(Item)"})
+	ntinRelationFile, err := os.Create("ntinrelations.csv.gz")
+	checkError("Cannot create file", err)
+	defer ntinRelationFile.Close()
 
-	for i := 0; i < (*palletNumber); i++ {
-		log.Print("Inserting PALLET...")
-		err := itemsWriter.Write([]string{fmt.Sprintf("08691234%010d", palletIndex), "400", "08691234", fmt.Sprintf("%010d", palletIndex), "1", "LOT001", strconv.Itoa(palletIndex), "", ""})
-		checkError("Cannot create PALLET", err)
+	ntinRelationGzip := gzip.NewWriter(ntinRelationFile)
+	defer ntinRelationGzip.Flush()
+	defer ntinRelationGzip.Close()
 
-		for j := 0; j < caseNumber; j++ {
-			err := itemsWriter.Write([]string{fmt.Sprintf("08695678%010d", caseIndex), "300", "08695678", fmt.Sprintf("%010d", caseIndex), "10", "LOT001", strconv.Itoa(caseIndex), "", ""})
-			checkError("Cannot create CASE", err)
+	ntinRelationWriter := csv.NewWriter(ntinRelationGzip)
+	defer ntinRelationWriter.Flush()
 
-			for k := 0; k < bundleNumber; k++ {
-				err := itemsWriter.Write([]string{fmt.Sprintf("08699012%010d", bundleIndex), "200", "08699012", fmt.Sprintf("%010d", bundleIndex), "10", "LOT001", strconv.Itoa(bundleIndex), "", ""})
-				checkError("Cannot create BUNDLE", err)
+	ntinsWriter.Write([]string{"NTIN:string:ID(NTIN)", "CodingSet:string"})
+	itemsWriter.Write([]string{":ID(Item)", "Type:int", "Serial:string", "Status:int", "Lot:string", "Sequence:long", "Flags:string", "HelperCode:string"})
+	itemRelationWriter.Write([]string{":START_ID(Item)", ":END_ID(Item)"})
+	ntinRelationWriter.Write([]string{":START_ID(NTIN)", ":END_ID(Item)"})
 
-				for l := 0; l < packageNumber; l++ {
-					err := itemsWriter.Write([]string{fmt.Sprintf("08690000%010d", packageIndex), "100", "08690000", fmt.Sprintf("%010d", packageIndex), "10", "LOT001", strconv.Itoa(packageIndex), "", ""})
-					checkError("Cannot create PACKAGE", err)
+	totalItems := (*palletNumber) * caseNumber * bundleNumber * packageNumber
 
-					err = relationsWriter.Write([]string{fmt.Sprintf("08699012%010d", bundleIndex), fmt.Sprintf("08690000%010d", packageIndex)})
-					checkError("Cannot create PACKAGE relation", err)
+	rand.Seed(time.Now().UnixNano())
 
-					packageIndex++
-				}
+	//eccediamo
+	numberOfLots := int(math.Ceil(math.Max(float64(totalItems / MIN_ITEMS_PER_LOT), 1)))
+	lots := make([]string, numberOfLots)
 
-				err = relationsWriter.Write([]string{fmt.Sprintf("08695678%010d", caseIndex), fmt.Sprintf("08699012%010d", bundleIndex)})
-				checkError("Cannot create BUNDLE relation", err)
+	for i:=0; i< numberOfLots;i++ {
+		lots = append(lots, fmt.Sprintf("LOT%05d", rand.Intn(9999)))
+	}
 
-				bundleIndex++
-			}
+	for _, lot := range lots {
 
-			err = relationsWriter.Write([]string{fmt.Sprintf("08691234%010d", palletIndex), fmt.Sprintf("08695678%010d", caseIndex)})
-			checkError("Cannot create PALLET relation", err)
+		palletsForThisLot := MIN_ITEMS_PER_LOT + rand.Intn(MAX_ITEMS_PER_LOT - MIN_ITEMS_PER_LOT)
 
-			caseIndex++
+		for i:=0; i < palletsForThisLot && palletIndex < (*palletNumber); i++ {
+			createPallet("08691234", itemsWriter, ntinRelationWriter, itemRelationWriter, lot)
 		}
 
-		palletIndex++
-
-		log.Print("...PALLET done")
-		itemsWriter.Flush()
 	}
+
+
 }
 
 func checkError(message string, err error) {
 	if err != nil {
 		log.Fatal(message, err)
 	}
+}
+
+func createPallet(ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
+	log.Print("Inserting PALLET...")
+	err := itemsWriter.Write([]string{fmt.Sprintf("%d%010d", ntin, palletIndex), "400", fmt.Sprintf("%010d", palletIndex), "1", lot, strconv.Itoa(palletIndex), "", ""})
+	checkError("Cannot create PALLET", err)
+	err = ntinRelationWriter.Write([]string{ntin, fmt.Sprintf("%d%010d", ntin, palletIndex)})
+	checkError("Cannot create NTIN->PALLET", err)
+
+	for j := 0; j < caseNumber; j++ {
+		createCase(ntin, "08695678", itemsWriter, ntinRelationWriter, itemRelationWriter, lot)
+	}
+
+	palletIndex++
+
+	log.Print("...PALLET done")
+	itemsWriter.Flush()
+	itemRelationWriter.Flush()
+	ntinRelationWriter.Flush()
+}
+
+func createCase(parentFullKey string, ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
+
+	fullKey := fmt.Sprintf("%d%010d", ntin, caseIndex)
+
+	err := itemsWriter.Write([]string{fullKey, "300", fmt.Sprintf("%010d", caseIndex), "10", lot, strconv.Itoa(caseIndex), "", ""})
+	checkError("Cannot create CASE", err)
+	err = ntinRelationWriter.Write([]string{ntin, fullKey})
+	checkError("Cannot create NTIN->CASE", err)
+
+	for k := 0; k < bundleNumber; k++ {
+		createBundle(fullKey, "08699012", itemsWriter, ntinRelationWriter, itemRelationWriter, lot)
+	}
+
+	err = itemRelationWriter.Write([]string{parentFullKey, fullKey})
+	checkError("Cannot create CASE relation", err)
+
+	caseIndex++
+}
+
+func createBundle(parentFullKey string, ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
+
+	fullKey := fmt.Sprintf("%d%010d", ntin, bundleIndex)
+
+	err := itemsWriter.Write([]string{fullKey, "200", fmt.Sprintf("%010d", bundleIndex), "10", lot, strconv.Itoa(bundleIndex), "", ""})
+	checkError("Cannot create BUNDLE", err)
+	err = ntinRelationWriter.Write([]string{ntin, fullKey})
+	checkError("Cannot create NTIN->BUNDLE", err)
+
+	for l := 0; l < packageNumber; l++ {
+		createPackage(fullKey, "08690000", itemsWriter, ntinRelationWriter, itemRelationWriter, lot)
+	}
+
+	err = itemRelationWriter.Write([]string{parentFullKey, fullKey})
+	checkError("Cannot create BUNDLE relation", err)
+
+	bundleIndex++
+}
+
+func createPackage(parentFullKey string, ntin string, itemsWriter *csv.Writer, ntinRelationWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
+
+	fullKey := fmt.Sprintf("%d%010d", ntin, packageIndex)
+
+	err := itemsWriter.Write([]string{fullKey, "100", fmt.Sprintf("%010d", packageIndex), "10", lot, strconv.Itoa(packageIndex), "", ""})
+	checkError("Cannot create PACKAGE", err)
+
+	err = ntinRelationWriter.Write([]string{ntin, fullKey})
+	checkError("Cannot create NTIN->BUNDLE", err)
+
+	err = itemRelationWriter.Write([]string{parentFullKey, fullKey})
+	checkError("Cannot create PACKAGE relation", err)
+
+	packageIndex++
 }
