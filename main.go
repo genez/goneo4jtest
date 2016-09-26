@@ -78,6 +78,45 @@ type Item struct {
 	Type         int64          `db:"Type"`
 }
 
+type WorkOrder struct {
+	ID           string `db:"Id"`
+	Lot          string `db:"Lot"`
+	Manufactured int64  `db:"Manufactured"`
+	Expiry       int64  `db:"Expiry"`
+}
+
+var lots map[string]WorkOrder
+
+func exportLots(db *sqlx.DB) {
+	rows, err := db.Queryx("select Id, Lot, Manufactured, Expiry from [dbo].[WorkOrder]")
+	checkError("select * from [dbo].[WorkOrder] failed", err)
+
+	file, err := os.Create("lots.csv.gz")
+	checkError("Cannot create file", err)
+	defer file.Close()
+
+	gzw := gzip.NewWriter(file)
+	defer gzw.Flush()
+	defer gzw.Close()
+
+	csvw := csv.NewWriter(gzw)
+	defer csvw.Flush()
+
+	csvw.Write([]string{"WorkOrderId:ID(Lot)", "Lot:string", "Manufactured:int", "Expiry:int"})
+
+	lots = make(map[string]string)
+
+	for rows.Next() {
+		wo := WorkOrder{}
+		err = rows.StructScan(&wo)
+		checkError("StructScan failed:", err)
+
+		csvw.Write([]string{wo.ID, wo.Lot, wo.Manufactured, wo.Expiry})
+
+		lots[wo.ID] = wo
+	}
+}
+
 func exportItems(db *sqlx.DB) {
 	rows, err := db.Queryx("select NtinId,Serial,Status,ParentNtinId,ParentSerial,WorkOrderID,Sequence,Type from [dbo].[Item]")
 	checkError("select * from [dbo].[WorkOrder] failed", err)
@@ -104,8 +143,20 @@ func exportItems(db *sqlx.DB) {
 	itemRelationWriter := csv.NewWriter(itemRelationGzip)
 	defer itemRelationWriter.Flush()
 
+	lotRelationFile, err := os.Create("lotrelations.csv.gz")
+	checkError("Cannot create file", err)
+	defer lotRelationFile.Close()
+
+	lotRelationGzip := gzip.NewWriter(lotRelationFile)
+	defer lotRelationGzip.Flush()
+	defer lotRelationGzip.Close()
+
+	lotRelationWriter := csv.NewWriter(lotRelationGzip)
+	defer lotRelationWriter.Flush()
+
 	itemsWriter.Write([]string{"DbKey:ID(Item)", "Type:int", "Status:int", "Sequence:long", "Flags:string", "HelperCode:string"})
 	itemRelationWriter.Write([]string{":START_ID(Item)", ":END_ID(Item)"})
+	lotRelationWriter.Write([]string{":START_ID(Item)", ":END_ID(Lot)"})
 
 	var i uint64
 
@@ -130,38 +181,15 @@ func exportItems(db *sqlx.DB) {
 				ntin + item.Serial})
 		}
 
+		wo := lots[item.WorkOrderID]
+		lotRelationWriter.Write([]string{ntin + item.Serial, wo.ID})
+
 		i++
 		if i%100000 == 0 {
 			itemsWriter.Flush()
 			itemRelationWriter.Flush()
 			log.Println(i)
 		}
-	}
-}
-
-func exportLots(db *sqlx.DB) {
-	rows, err := db.Queryx("select Lot, CAST(Expiry as varchar) as Exp from [dbo].[WorkOrder]")
-	checkError("select * from [dbo].[WorkOrder] failed", err)
-
-	file, err := os.Create("lots.csv.gz")
-	checkError("Cannot create file", err)
-	defer file.Close()
-
-	gzw := gzip.NewWriter(file)
-	defer gzw.Flush()
-	defer gzw.Close()
-
-	csvw := csv.NewWriter(gzw)
-	defer csvw.Flush()
-
-	csvw.Write([]string{"Number:ID(Lot)", "Expiry:string"})
-
-	for rows.Next() {
-		values := make(map[string]interface{})
-		err = rows.MapScan(values)
-		checkError("MapScan failed:", err)
-
-		csvw.Write([]string{values["Lot"].(string), values["Exp"].(string)})
 	}
 }
 
