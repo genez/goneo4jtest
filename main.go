@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"database/sql"
 	"encoding/base32"
 	"encoding/csv"
 	"flag"
@@ -37,7 +38,7 @@ var ntins = make(map[int64]string)
 func main() {
 
 	server := flag.String("server", "83.136.250.39\\SQL2012", "server name")
-	db, err := sqlx.Open("mssql", fmt.Sprintf("server=%s;database=AntaresTrackingBenchmark;user id=tav;", *server))
+	db, err := sqlx.Open("mssql", fmt.Sprintf("server=%s;database=AntaresTrackingBenchmark;user id=tav;password=tav", *server))
 	err = db.Ping()
 	checkError("cannot open mssql", err)
 
@@ -63,6 +64,17 @@ func checkError(message string, err error) {
 	if err != nil {
 		log.Fatal(message, err)
 	}
+}
+
+type Item struct {
+	NtinId       int64          `db:"NtinId"`
+	Serial       string         `db:"Serial"`
+	Status       int64          `db:"Status"`
+	ParentNtinID sql.NullInt64  `db:"ParentNtinId"`
+	ParentSerial sql.NullString `db:"ParentSerial"`
+	WorkOrderID  string         `db:"WorkOrderID"`
+	Sequence     int64          `db:"Sequence"`
+	Type         int64          `db:"Type"`
 }
 
 func exportItems(db *sqlx.DB) {
@@ -97,24 +109,24 @@ func exportItems(db *sqlx.DB) {
 	var i uint64 = 0
 
 	for rows.Next() {
-		values := make(map[string]interface{})
-		err = rows.MapScan(values)
-		checkError("MapScan failed", err)
+		item := Item{}
+		err = rows.StructScan(&item)
+		checkError("StructScan failed", err)
 
-		ntin := ntins[values["NtinId"].(int64)]
+		ntin := ntins[item.NtinId]
 
 		itemsWriter.Write([]string{
-			ntin + values["Serial"].(string),
-			strconv.FormatInt(values["Type"].(int64), 10),
-			strconv.FormatInt(values["Status"].(int64), 10),
-			strconv.FormatInt(values["Sequence"].(int64), 10),
+			ntin + item.Serial,
+			strconv.FormatInt(item.Type, 10),
+			strconv.FormatInt(item.Status, 10),
+			strconv.FormatInt(item.Sequence, 10),
 			"",
 			""})
 
-		if values["ParentNtinId"] != nil {
+		if item.ParentNtinID.Valid {
 			itemRelationWriter.Write([]string{
-				ntins[values["ParentNtinId"].(int64)] + values["ParentSerial"].(string),
-				ntin + values["Serial"].(string)})
+				ntins[item.ParentNtinID.Int64] + item.ParentSerial.String,
+				ntin + item.Serial})
 		}
 
 		i++
