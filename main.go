@@ -68,7 +68,7 @@ func checkError(message string, err error) {
 
 // Item represents an item (meh)
 type Item struct {
-	NtinId       int64          `db:"NtinId"`
+	NtinID       int64          `db:"NtinId"`
 	Serial       string         `db:"Serial"`
 	Status       int64          `db:"Status"`
 	ParentNtinID sql.NullInt64  `db:"ParentNtinId"`
@@ -114,7 +114,7 @@ func exportItems(db *sqlx.DB) {
 		err = rows.StructScan(&item)
 		checkError("StructScan failed", err)
 
-		ntin := ntins[item.NtinId]
+		ntin := ntins[item.NtinID]
 
 		itemsWriter.Write([]string{
 			ntin + item.Serial,
