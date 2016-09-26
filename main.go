@@ -66,6 +66,7 @@ func checkError(message string, err error) {
 	}
 }
 
+// Item represents an item (meh)
 type Item struct {
 	NtinId       int64          `db:"NtinId"`
 	Serial       string         `db:"Serial"`
@@ -106,7 +107,7 @@ func exportItems(db *sqlx.DB) {
 	itemsWriter.Write([]string{"DbKey:ID(Item)", "Type:int", "Status:int", "Sequence:long", "Flags:string", "HelperCode:string"})
 	itemRelationWriter.Write([]string{":START_ID(Item)", ":END_ID(Item)"})
 
-	var i uint64 = 0
+	var i uint64
 
 	for rows.Next() {
 		item := Item{}
@@ -158,6 +159,7 @@ func exportLots(db *sqlx.DB) {
 	for rows.Next() {
 		values := make(map[string]interface{})
 		err = rows.MapScan(values)
+		checkError("MapScan failed:", err)
 
 		csvw.Write([]string{values["Lot"].(string), values["Exp"].(string)})
 	}
@@ -185,6 +187,7 @@ func exportNtins(db *sqlx.DB) {
 
 		values := make(map[string]interface{})
 		err = rows.MapScan(values)
+		checkError("MapScan failed:", err)
 
 		ntins[values["Id"].(int64)] = dbkey
 
