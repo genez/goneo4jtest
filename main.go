@@ -104,14 +104,14 @@ func exportLots(db *sqlx.DB) {
 
 	csvw.Write([]string{"WorkOrderId:ID(Lot)", "Lot:string", "Manufactured:int", "Expiry:int"})
 
-	lots = make(map[string]string)
+	lots = make(map[string]WorkOrder)
 
 	for rows.Next() {
 		wo := WorkOrder{}
 		err = rows.StructScan(&wo)
 		checkError("StructScan failed:", err)
 
-		csvw.Write([]string{wo.ID, wo.Lot, wo.Manufactured, wo.Expiry})
+		csvw.Write([]string{wo.ID, wo.Lot, strconv.FormatInt(wo.Manufactured, 10), strconv.FormatInt(wo.Expiry, 10)})
 
 		lots[wo.ID] = wo
 	}
