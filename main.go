@@ -181,8 +181,10 @@ func exportItems(db *sqlx.DB) {
 				ntin + item.Serial})
 		}
 
-		wo := lots[item.WorkOrderID]
-		lotRelationWriter.Write([]string{ntin + item.Serial, wo.ID})
+		if item.WorkOrderID != nil && item.WorkOrderID != "" {
+			wo := lots[item.WorkOrderID]
+			lotRelationWriter.Write([]string{ntin + item.Serial, wo.ID})
+		}
 
 		i++
 		if i%100000 == 0 {
