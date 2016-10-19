@@ -38,7 +38,7 @@ var ntins = make(map[int64]string)
 func main() {
 
 	server := flag.String("server", "83.136.250.39\\SQL2012", "server name")
-	db, err := sqlx.Open("mssql", fmt.Sprintf("server=%s;database=AntaresTrackingBenchmark;user id=tav;password=tav", *server))
+	db, err := sqlx.Open("mssql", fmt.Sprintf("server=%s;database=AntaresTrackingBenchmark;user id=tav;password=tav;", *server))
 	err = db.Ping()
 	checkError("cannot open mssql", err)
 
@@ -50,12 +50,13 @@ func main() {
 	exportLots(db)
 	log.Println("done")
 
-	var totalItems int
-	var lots int
-	err = db.QueryRow("select count(*), count(distinct WorkOrderid) from dbo.Item").Scan(&totalItems, &lots)
-	checkError("query failed", err)
-
-	log.Println("Exporting ", totalItems, " total items in ", lots, " work orders")
+	//var totalItems int
+	//var lots int
+	//err = db.QueryRow("select count(*), count(distinct WorkOrderid) from dbo.Item").Scan(&totalItems, &lots)
+	//checkError("query failed", err)
+	//
+	//log.Println("Exporting ", totalItems, " total items in ", lots, " work orders")
+	log.Println("Exporting items in")
 	exportItems(db)
 	log.Println("done")
 }
@@ -118,7 +119,7 @@ func exportLots(db *sqlx.DB) {
 }
 
 func exportItems(db *sqlx.DB) {
-	rows, err := db.Queryx("select NtinId,Serial,Status,ParentNtinId,ParentSerial,WorkOrderID,Sequence,Type from [dbo].[Item]")
+	rows, err := db.Queryx("select NtinId,Serial,Status,ParentNtinId,ParentSerial,WorkOrderID,Sequence,Type from [dbo].[Item] OPTION (FAST 1000)")
 	checkError("select * from [dbo].[WorkOrder] failed", err)
 
 	itemsFile, err := os.Create("items.csv.gz")
@@ -176,14 +177,16 @@ func exportItems(db *sqlx.DB) {
 			""})
 
 		if item.ParentNtinID.Valid {
+			//this Item has a parent
 			itemRelationWriter.Write([]string{
 				ntins[item.ParentNtinID.Int64] + item.ParentSerial.String,
 				ntin + item.Serial})
-		}
-
-		if item.WorkOrderID != "" {
-			wo := lots[item.WorkOrderID]
-			lotRelationWriter.Write([]string{ntin + item.Serial, wo.ID})
+		} else {
+			//only top-level items are linked to the Lot
+			if item.WorkOrderID != "" {
+				wo := lots[item.WorkOrderID]
+				lotRelationWriter.Write([]string{ntin + item.Serial, wo.ID})
+			}
 		}
 
 		i++
