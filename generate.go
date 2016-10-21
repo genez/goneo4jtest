@@ -15,25 +15,25 @@ import (
 
 var totalPallets *uint64
 
-const PALLET_NTIN_ID = 122112
+const PALLET_NTIN_ID = 1462
 
 var palletIndex *uint64
 var palletNumber *uint64
 
-const CASE_NTIN_ID = 122112
+const CASE_NTIN_ID = 1420
 
 var caseIndex uint64 = 0
-var caseNumber uint64 = 4
+var casesInPallet uint64 = 4
 
-const BUNDLE_NTIN_ID = 122112
+const BUNDLE_NTIN_ID = 1419
 
 var bundleIndex uint64 = 0
-var bundleNumber uint64 = 8
+var bundlesInCase uint64 = 8
 
 const PACKAGE_NTIN_ID = 1397
 
 var packageIndex uint64 = 0
-var packageNumber uint64 = 100
+var packagesInBundle uint64 = 100
 
 var ntins = make(map[int]string)
 
@@ -60,8 +60,6 @@ func main() {
 	palletIndex = flag.Uint64("palletIndex", 0, "starting pallet index")
 	totalPallets = flag.Uint64("totalPallets", 10, "total number of pallets")
 	flag.Parse()
-
-	log.Println("Aggregating ", (*palletNumber), " Pallets starting from ", *palletIndex)
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -110,10 +108,21 @@ func createLot(lot string, palletsForThisLot uint64) {
 	itemRelationWriter.Write([]string{":START_ID(Item)", ":END_ID(Item)"})
 	lotRelationWriter.Write([]string{":START_ID(Item)", ":END_ID(Lot)"})
 
-	casesForThisLot := palletsForThisLot * caseNumber
-	bundlesForThisLot := casesForThisLot * bundleNumber
-	packagesForThisLot := bundlesForThisLot * packageNumber
-	log.Printf("Starting lot %s with %d pallets (estimated %d total items)", lot, palletsForThisLot, palletsForThisLot+casesForThisLot+bundlesForThisLot+packagesForThisLot)
+	log.Println("Starting lot", lot)
+
+	caseIndex = casesInPallet * (*palletIndex)
+	casesForThisLot := palletsForThisLot * casesInPallet
+
+	bundleIndex = bundlesInCase * caseIndex
+	bundlesForThisLot := casesForThisLot * bundlesInCase
+
+	packageIndex = packagesInBundle * bundleIndex
+	packagesForThisLot := bundlesForThisLot * packagesInBundle
+
+	log.Println("Aggregating", palletsForThisLot, "pallets starting from", (*palletIndex))
+	log.Println("Aggregating", casesForThisLot, "cases starting from", caseIndex)
+	log.Println("Aggregating", bundlesForThisLot, "bundles starting from", bundleIndex)
+	log.Println("Creating", packagesForThisLot, "packages starting from", packageIndex)
 
 	var i uint64 = 0
 	for ; i < palletsForThisLot; i++ {
@@ -155,22 +164,20 @@ func exportNtins() {
 	ntinsWriter.Write([]string{"DbKey:ID(NTIN)", "Id:int", "Ntin:string", "CodingRuleId:string"})
 
 	dbkey := getEncodedTimeStamp()
-	ntins[1023] = dbkey
-	ntinsWriter.Write([]string{dbkey, "1023", "08691234", "GS1_SSCC"})
+	ntins[PALLET_NTIN_ID] = dbkey
+	ntinsWriter.Write([]string{dbkey, strconv.Itoa(PALLET_NTIN_ID), "00575424", "GS1_SSCC"})
 
 	dbkey = getEncodedTimeStamp()
-	ntins[1024] = dbkey
-	ntinsWriter.Write([]string{dbkey, "1024", "08691234", "CHINESE_EDMC"})
+	ntins[CASE_NTIN_ID] = dbkey
+	ntinsWriter.Write([]string{dbkey, strconv.Itoa(CASE_NTIN_ID), "33255587", "GS1_SSCC"})
 
 	dbkey = getEncodedTimeStamp()
-	ntins[1024] = dbkey
-	ntinsWriter.Write([]string{dbkey, "1024", "08691234", "CHINESE_EDMC"})
+	ntins[BUNDLE_NTIN_ID] = dbkey
+	ntinsWriter.Write([]string{dbkey, strconv.Itoa(BUNDLE_NTIN_ID), "22847676", "GS1_SSCC"})
 
-	/* PACKAGES */
 	dbkey = getEncodedTimeStamp()
 	ntins[PACKAGE_NTIN_ID] = dbkey
 	ntinsWriter.Write([]string{dbkey, strconv.Itoa(PACKAGE_NTIN_ID), "11483874937461", "GS1_SGTIN"})
-
 }
 
 func checkError(message string, err error) {
@@ -183,17 +190,17 @@ func createPallet(ntinId int, itemsWriter *csv.Writer, itemRelationWriter *csv.W
 
 	t := time.Now()
 
-	fullKey := fmt.Sprintf("%s%010d", ntins[ntinId], *palletIndex)
+	fullKey := fmt.Sprintf("%s%012d", ntins[ntinId], *palletIndex)
 
-	err := itemsWriter.Write([]string{fullKey, "400", fmt.Sprintf("%010d", *palletIndex), "1", lot, strconv.FormatUint(*palletIndex, 10), "", ""})
+	err := itemsWriter.Write([]string{fullKey, "400", fmt.Sprintf("%012d", *palletIndex), "1", lot, strconv.FormatUint(*palletIndex, 10), "", ""})
 	checkError("Cannot create PALLET", err)
 
 	var j uint64 = 0
-	for ; j < caseNumber; j++ {
+	for ; j < casesInPallet; j++ {
 		createCase(fullKey, CASE_NTIN_ID, itemsWriter, itemRelationWriter, lot)
 	}
 
-	log.Printf("PALLET %010d done in %v", *palletIndex, time.Since(t))
+	log.Printf("PALLET %012d done in %v", *palletIndex, time.Since(t))
 	itemsWriter.Flush()
 	itemRelationWriter.Flush()
 
@@ -202,13 +209,13 @@ func createPallet(ntinId int, itemsWriter *csv.Writer, itemRelationWriter *csv.W
 
 func createCase(parentFullKey string, ntinId int, itemsWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
 
-	fullKey := fmt.Sprintf("%s%010d", ntins[ntinId], caseIndex)
+	fullKey := fmt.Sprintf("%s%012d", ntins[ntinId], caseIndex)
 
-	err := itemsWriter.Write([]string{fullKey, "300", fmt.Sprintf("%010d", caseIndex), "10", lot, strconv.FormatUint(caseIndex, 10), "", ""})
+	err := itemsWriter.Write([]string{fullKey, "300", fmt.Sprintf("%012d", caseIndex), "10", lot, strconv.FormatUint(caseIndex, 10), "", ""})
 	checkError("Cannot create CASE", err)
 
 	var k uint64 = 0
-	for ; k < bundleNumber; k++ {
+	for ; k < bundlesInCase; k++ {
 		createBundle(fullKey, BUNDLE_NTIN_ID, itemsWriter, itemRelationWriter, lot)
 	}
 
@@ -220,13 +227,13 @@ func createCase(parentFullKey string, ntinId int, itemsWriter *csv.Writer, itemR
 
 func createBundle(parentFullKey string, ntinId int, itemsWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
 
-	fullKey := fmt.Sprintf("%s%010d", ntins[ntinId], bundleIndex)
+	fullKey := fmt.Sprintf("%s%012d", ntins[ntinId], bundleIndex)
 
-	err := itemsWriter.Write([]string{fullKey, "200", fmt.Sprintf("%010d", bundleIndex), "10", lot, strconv.FormatUint(bundleIndex, 10), "", ""})
+	err := itemsWriter.Write([]string{fullKey, "200", fmt.Sprintf("%012d", bundleIndex), "10", lot, strconv.FormatUint(bundleIndex, 10), "", ""})
 	checkError("Cannot create BUNDLE", err)
 
 	var l uint64 = 0
-	for ; l < packageNumber; l++ {
+	for ; l < packagesInBundle; l++ {
 		createPackage(fullKey, PACKAGE_NTIN_ID, itemsWriter, itemRelationWriter, lot)
 	}
 
@@ -238,9 +245,9 @@ func createBundle(parentFullKey string, ntinId int, itemsWriter *csv.Writer, ite
 
 func createPackage(parentFullKey string, ntinId int, itemsWriter *csv.Writer, itemRelationWriter *csv.Writer, lot string) {
 
-	fullKey := fmt.Sprintf("%s%010d", ntins[ntinId], packageIndex)
+	fullKey := fmt.Sprintf("%s%012d", ntins[ntinId], packageIndex)
 
-	err := itemsWriter.Write([]string{fullKey, "100", fmt.Sprintf("%010d", packageIndex), "10", lot, strconv.FormatUint(packageIndex, 10), "", ""})
+	err := itemsWriter.Write([]string{fullKey, "100", fmt.Sprintf("%012d", packageIndex), "10", lot, strconv.FormatUint(packageIndex, 10), "", ""})
 	checkError("Cannot create PACKAGE", err)
 
 	err = itemRelationWriter.Write([]string{parentFullKey, fullKey})
