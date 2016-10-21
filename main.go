@@ -1,5 +1,7 @@
 package main
 
+/*
+
 import (
 	"compress/gzip"
 	"database/sql"
@@ -227,3 +229,4 @@ func exportNtins(db *sqlx.DB) {
 		ntinsWriter.Write([]string{dbkey, strconv.FormatInt(values["Id"].(int64), 10), values["Ntin"].(string), values["CodingRuleId"].(string)})
 	}
 }
+*/
