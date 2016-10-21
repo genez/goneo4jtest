@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"strconv"
@@ -153,16 +154,21 @@ func createLot(lot string, palletsForThisLot uint64) {
 
 	t := time.Now()
 
-	var i uint64 = 0
-	for ; i < palletsForThisLot; i++ {
+	var i uint64 = 1
+	for ; i <= palletsForThisLot; i++ {
 		createPallet(PALLET_NTIN_ID, itemsWriter, itemRelationWriter, lotRelationWriter, lot)
 
-		if (*palletIndex)%1000 == 0 {
+		if i%1000 == 0 {
 			t2 := time.Since(t)
 
-			palletPerSecond := float64((*palletIndex)) / t2.Seconds()
-			eta := time.Duration(float64(palletsForThisLot)-float64((*palletIndex))*palletPerSecond) * time.Second
-			log.Printf("PALLET %012d done (%v pallet/s) - (ETA: %v)", *palletIndex, palletPerSecond, eta)
+			secondsElapsed := t2.Seconds()
+
+			palletPerSecond := uint64(math.Floor(float64(*palletIndex) / secondsElapsed))
+			remainingPalletsForThisLot := palletsForThisLot - i
+			secondsRemaining := remainingPalletsForThisLot / palletPerSecond
+			eta := time.Duration(secondsRemaining) * time.Second
+
+			log.Printf("PALLET %012d aggregated (%v/%v) (%v pallet/s) - (ETA: %v)", *palletIndex, i, palletsForThisLot, palletPerSecond, eta)
 		}
 
 	}
